@@ -81,7 +81,17 @@ fi
 
 echo -e "${GREEN}빌드 완료: $APP_PATH${NC}"
 
-echo -e "${YELLOW}3단계: DMG 생성 준비 중...${NC}"
+echo -e "${YELLOW}3단계: 코드 서명 및 quarantine 제거 중...${NC}"
+
+# Quarantine 속성 제거
+xattr -cr "$APP_PATH"
+
+# Ad-hoc 코드 서명 (서명 없이 실행 가능하도록)
+codesign --force --deep --sign - "$APP_PATH"
+
+echo -e "${GREEN}코드 서명 완료${NC}"
+
+echo -e "${YELLOW}4단계: DMG 생성 준비 중...${NC}"
 
 # DMG용 임시 디렉토리 생성
 DMG_TEMP="$BUILD_DIR/dmg_temp"
@@ -90,13 +100,16 @@ mkdir -p "$DMG_TEMP"
 # 앱 복사
 cp -R "$APP_PATH" "$DMG_TEMP/"
 
+# 복사된 앱에도 quarantine 제거
+xattr -cr "$DMG_TEMP/dragly.app"
+
 # Applications 폴더 심볼릭 링크 생성
 ln -s /Applications "$DMG_TEMP/Applications"
 
 # 배경 이미지용 숨김 폴더 (선택사항)
 # mkdir -p "$DMG_TEMP/.background"
 
-echo -e "${YELLOW}4단계: DMG 파일 생성 중...${NC}"
+echo -e "${YELLOW}5단계: DMG 파일 생성 중...${NC}"
 
 # DMG 생성
 hdiutil create \
@@ -106,7 +119,7 @@ hdiutil create \
     -format UDZO \
     "$RELEASE_DIR/$DMG_NAME"
 
-echo -e "${YELLOW}5단계: 정리 중...${NC}"
+echo -e "${YELLOW}6단계: 정리 중...${NC}"
 rm -rf "$DMG_TEMP"
 
 # 결과 확인
@@ -125,6 +138,9 @@ if [[ -f "$DMG_PATH" ]]; then
     echo -e "  1. DMG 파일 더블클릭"
     echo -e "  2. drag.ly를 Applications 폴더로 드래그"
     echo -e "  3. Applications에서 drag.ly 실행"
+    echo ""
+    echo -e "${YELLOW}만약 '손상됨' 경고가 나타나면:${NC}"
+    echo -e "  xattr -cr /Applications/dragly.app"
     echo ""
 
     # Finder에서 열기
