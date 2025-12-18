@@ -49,7 +49,7 @@ struct CardView: View {
             let provider = NSItemProvider(object: item.text as NSString)
             return provider
         }
-        .onChange(of: isDragging) { _, newValue in
+        .onChange(of: isDragging) { newValue in
             if !newValue {
                 // Drag ended - this will be called after drop
                 // Note: We mark as checked when drag starts to provide immediate feedback
