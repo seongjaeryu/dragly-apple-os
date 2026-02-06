@@ -6,7 +6,6 @@ struct ContentView: View {
     @State private var newText = ""
     @State private var launchAtLogin = SMAppService.mainApp.status == .enabled
     @State private var showSettings = false
-    @State private var inputHeight: CGFloat = 24
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,8 +56,7 @@ struct ContentView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(14)
 
             // MARK: - Settings Panel
             if showSettings {
@@ -102,8 +100,8 @@ struct ContentView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color(NSColor.controlBackgroundColor))
                 )
-                .padding(.horizontal, 12)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 14)
+                .padding(.bottom, 10)
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
 
@@ -126,36 +124,30 @@ struct ContentView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 6) {
+                    LazyVStack(spacing: 8) {
                         ForEach(store.items) { item in
                             CardRow(item: item, store: store)
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(14)
                 }
             }
 
             Divider()
 
-            // MARK: - Input
+            // MARK: - Input (native SwiftUI TextField, no NSTextView)
             HStack(alignment: .bottom, spacing: 8) {
-                ZStack(alignment: .topLeading) {
-                    if newText.isEmpty {
-                        Text("Type a thought...")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary.opacity(0.5))
-                            .padding(.top, 4)
-                            .padding(.leading, 4)
-                    }
-                    MultilineTextField(text: $newText, dynamicHeight: $inputHeight, onSubmit: addItem)
-                        .frame(height: inputHeight)
-                }
-                .padding(2)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                )
+                TextField("Capture your spark...", text: $newText, axis: .vertical)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13))
+                    .lineSpacing(5)
+                    .lineLimit(1...8)
+                    .onSubmit { addItem() }
+                    .padding(8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(Color(NSColor.controlBackgroundColor))
+                    )
 
                 Button(action: addItem) {
                     Image(systemName: "arrow.up.circle.fill")
@@ -165,10 +157,9 @@ struct ContentView: View {
                 .buttonStyle(.plain)
                 .disabled(newText.isEmpty)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(14)
         }
-        .frame(width: 320, height: 376 + inputHeight)
+        .frame(width: 320, height: 420)
         .background(Color(NSColor.windowBackgroundColor))
         .contextMenu {
             Button("Clear Used") {
@@ -207,7 +198,6 @@ struct ContentView: View {
             store.add(trimmed)
         }
         newText = ""
-        inputHeight = 24
     }
 }
 
@@ -219,14 +209,15 @@ struct CardRow: View {
     @State private var isHovering = false
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             Image(systemName: item.isUsed ? "checkmark.circle.fill" : "grip.vertical")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(item.isUsed ? .green : .secondary.opacity(0.4))
-                .frame(width: 16)
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(item.isUsed ? .green : .secondary.opacity(0.35))
+                .frame(width: 12)
 
             Text(item.text)
                 .font(.system(size: 12.5))
+                .lineSpacing(3)
                 .lineLimit(3)
                 .strikethrough(item.isUsed)
                 .foregroundColor(item.isUsed ? .secondary : .primary)
@@ -269,8 +260,7 @@ struct CardRow: View {
             }
             .opacity(isHovering ? 1 : 0)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
+        .padding(10)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(isHovering
@@ -290,129 +280,6 @@ struct CardRow: View {
         .onDrag {
             store.markUsed(item.id)
             return NSItemProvider(object: item.text as NSString)
-        }
-    }
-}
-
-// MARK: - Auto-grow NSTextView (suppresses auto-scroll during height adjustment)
-
-private class AutoGrowTextView: NSTextView {
-    var suppressScroll = false
-
-    override func scrollRangeToVisible(_ range: NSRange) {
-        guard !suppressScroll else { return }
-        super.scrollRangeToVisible(range)
-    }
-}
-
-// MARK: - Multiline TextField (Enter to submit, Shift+Enter for newline)
-
-struct MultilineTextField: NSViewRepresentable {
-    @Binding var text: String
-    @Binding var dynamicHeight: CGFloat
-    var onSubmit: () -> Void
-
-    fileprivate let maxHeight: CGFloat = 200
-    fileprivate let minHeight: CGFloat = 24
-
-    func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSScrollView()
-
-        let textContainer = NSTextContainer()
-        textContainer.widthTracksTextView = true
-
-        let layoutManager = NSLayoutManager()
-        layoutManager.addTextContainer(textContainer)
-
-        let textStorage = NSTextStorage()
-        textStorage.addLayoutManager(layoutManager)
-
-        let textView = AutoGrowTextView(frame: .zero, textContainer: textContainer)
-        textView.delegate = context.coordinator
-        textView.font = .systemFont(ofSize: 13)
-        textView.isRichText = false
-        textView.allowsUndo = true
-        textView.backgroundColor = .clear
-        textView.drawsBackground = false
-        textView.textContainerInset = NSSize(width: 2, height: 2)
-        textView.defaultParagraphStyle = {
-            let style = NSMutableParagraphStyle()
-            style.lineSpacing = 4
-            return style
-        }()
-        textView.isVerticallyResizable = true
-        textView.isHorizontallyResizable = false
-        textView.autoresizingMask = [.width]
-
-        scrollView.documentView = textView
-        scrollView.hasVerticalScroller = true
-        scrollView.scrollerStyle = .legacy
-        scrollView.autohidesScrollers = true
-        scrollView.hasHorizontalScroller = false
-        scrollView.borderType = .noBorder
-        scrollView.drawsBackground = false
-
-        return scrollView
-    }
-
-    func updateNSView(_ scrollView: NSScrollView, context: Context) {
-        guard let textView = scrollView.documentView as? AutoGrowTextView else { return }
-        if textView.string != text {
-            textView.suppressScroll = true
-            textView.string = text
-            DispatchQueue.main.async {
-                context.coordinator.recalcHeight(textView)
-                textView.suppressScroll = false
-            }
-        }
-    }
-
-    func makeCoordinator() -> Coordinator {
-        Coordinator(self)
-    }
-
-    class Coordinator: NSObject, NSTextViewDelegate {
-        var parent: MultilineTextField
-
-        init(_ parent: MultilineTextField) {
-            self.parent = parent
-        }
-
-        func recalcHeight(_ textView: NSTextView) {
-            guard let layoutManager = textView.layoutManager,
-                  let textContainer = textView.textContainer else { return }
-            layoutManager.ensureLayout(for: textContainer)
-            let usedRect = layoutManager.usedRect(for: textContainer)
-            let inset = textView.textContainerInset.height * 2
-            let newHeight = min(max(usedRect.height + inset, parent.minHeight), parent.maxHeight)
-            parent.dynamicHeight = newHeight
-        }
-
-        func textDidChange(_ notification: Notification) {
-            guard let textView = notification.object as? AutoGrowTextView else { return }
-            textView.suppressScroll = true
-            parent.text = textView.string
-            recalcHeight(textView)
-
-            DispatchQueue.main.async {
-                textView.suppressScroll = false
-                if self.parent.dynamicHeight >= self.parent.maxHeight {
-                    textView.scrollRangeToVisible(textView.selectedRange())
-                }
-            }
-        }
-
-        func textView(_ textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
-            if commandSelector == #selector(NSResponder.insertNewline(_:)) {
-                if NSEvent.modifierFlags.contains(.shift) {
-                    textView.insertNewlineIgnoringFieldEditor(nil)
-                    return true
-                } else {
-                    parent.onSubmit()
-                    return true
-                }
-            }
-            return false
         }
     }
 }
