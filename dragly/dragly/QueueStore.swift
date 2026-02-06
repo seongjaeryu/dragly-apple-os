@@ -39,6 +39,13 @@ class QueueStore: ObservableObject {
         }
     }
 
+    func toggleUsed(_ id: UUID) {
+        if let idx = items.firstIndex(where: { $0.id == id }) {
+            items[idx].isUsed.toggle()
+            save()
+        }
+    }
+
     func clearUsed() {
         items.removeAll { $0.isUsed }
         save()
