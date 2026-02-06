@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Xcode
+build/
+*.xcworkspace/
+xcuserdata/
+
+# Release builds
+release/
+
+# Claude Code
+.claude/
