@@ -78,7 +78,7 @@ struct ContentView: View {
                 .animation(.easeOut(duration: 0.2), value: showSettings)
             input
         }
-        .frame(width: 340, height: 440)
+        .frame(width: 340, height: 484)
         .background(LN.bg)
         .onChange(of: launchAtLogin) { val in
             do {
@@ -247,8 +247,8 @@ struct ContentView: View {
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
                 .lineSpacing(6)
-                .lineLimit(1...6)
-                .shiftEnterSubmit { addItem() }
+                .lineLimit(1...5)
+                .shiftEnterSubmit(text: $newText) { addItem() }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 9)
                 .background(
@@ -289,7 +289,9 @@ struct ContentView: View {
     }
 
     private func addItem() {
-        let trimmed = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = newText
+            .replacingOccurrences(of: "\u{200B}", with: "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return }
         withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
             store.add(trimmed)
@@ -471,10 +473,13 @@ private struct GhostButton: View {
 
 private extension View {
     @ViewBuilder
-    func shiftEnterSubmit(action: @escaping () -> Void) -> some View {
+    func shiftEnterSubmit(text: Binding<String>, action: @escaping () -> Void) -> some View {
         if #available(macOS 14.0, *) {
             self.onKeyPress(.return, phases: .down) { press in
-                if press.modifiers.contains(.shift) { return .ignored }
+                if press.modifiers.contains(.shift) {
+                    text.wrappedValue.append("\n\u{200B}")
+                    return .handled
+                }
                 action()
                 return .handled
             }
